@@ -1,0 +1,35 @@
+import { Router } from 'express';
+import { authRoutes } from '../modules/auth/auth.routes.js';
+import { usersRoutes } from '../modules/users/users.routes.js';
+import { reportsRoutes } from '../modules/reports/reports.routes.js';
+import { salesRoutes } from '../modules/sales/sales.routes.js';
+import { tablesRoutes } from '../modules/tables/tables.routes.js';
+import { cashRoutes } from '../modules/cash/cash.routes.js';
+import { inventoryRoutes } from '../modules/inventory/inventory.routes.js';
+import { ordersRoutes } from '../modules/orders/orders.routes.js';
+import { createCrudRoutes } from '../modules/crud/crud.routes.js';
+import { categorySchema, customerSchema, productSchema, promotionSchema, reservationSchema, roleSchema, supplierSchema } from '../modules/crud/crud.schemas.js';
+
+export const routes = Router();
+
+routes.get('/health', (_req, res) => res.json({ success: true, message: 'API Tinto Verano funcionando', data: { uptime: process.uptime() } }));
+routes.use('/auth', authRoutes);
+routes.use('/users', usersRoutes);
+routes.use('/roles', createCrudRoutes({ modelName: 'role', entity: 'roles', schema: roleSchema, permissions: { read: ['user.create'], create: ['user.create'], update: ['user.create'], delete: ['user.create'] } }));
+routes.use('/products', createCrudRoutes({ modelName: 'product', entity: 'products', schema: productSchema, permissions: { read: ['sale.create'], create: ['product.create'], update: ['product.update'], delete: ['product.delete'] } }));
+routes.use('/categories', createCrudRoutes({ modelName: 'productCategory', entity: 'categories', schema: categorySchema, permissions: { read: ['sale.create'], create: ['product.create'], update: ['product.update'], delete: ['product.delete'] } }));
+routes.use('/customers', createCrudRoutes({ modelName: 'customer', entity: 'customers', schema: customerSchema, permissions: { read: ['sale.create'], create: ['sale.create'], update: ['sale.create'], delete: ['settings.manage'] } }));
+routes.use('/suppliers', createCrudRoutes({ modelName: 'supplier', entity: 'suppliers', schema: supplierSchema, permissions: { read: ['purchase.create'], create: ['purchase.create'], update: ['purchase.create'], delete: ['settings.manage'] } }));
+routes.use('/tables', tablesRoutes);
+routes.use('/orders', ordersRoutes);
+routes.use('/inventory', inventoryRoutes);
+routes.use('/purchases', createCrudRoutes({ modelName: 'purchase', entity: 'purchases', permissions: { read: ['purchase.create'], create: ['purchase.create'], update: ['purchase.create'], delete: ['settings.manage'] } }));
+routes.use('/cash', cashRoutes);
+routes.use('/sales', salesRoutes);
+routes.use('/accounts-receivable', createCrudRoutes({ modelName: 'accountsReceivable', entity: 'accounts_receivable', permissions: { read: ['accounts_receivable.view'], create: ['sale.create'], update: ['accounts_receivable.view'], delete: ['settings.manage'] } }));
+routes.use('/accounts-payable', createCrudRoutes({ modelName: 'accountsPayable', entity: 'accounts_payable', permissions: { read: ['accounts_payable.view'], create: ['purchase.create'], update: ['accounts_payable.view'], delete: ['settings.manage'] } }));
+routes.use('/reservations', createCrudRoutes({ modelName: 'reservation', entity: 'reservations', schema: reservationSchema, permissions: { read: ['sale.create'], create: ['sale.create'], update: ['sale.create'], delete: ['settings.manage'] } }));
+routes.use('/promotions', createCrudRoutes({ modelName: 'promotion', entity: 'promotions', schema: promotionSchema, permissions: { read: ['sale.create'], create: ['settings.manage'], update: ['settings.manage'], delete: ['settings.manage'] } }));
+routes.use('/settings', createCrudRoutes({ modelName: 'companySettings', entity: 'settings', permissions: { read: ['settings.manage'], create: ['settings.manage'], update: ['settings.manage'], delete: ['settings.manage'] } }));
+routes.use('/audit-logs', createCrudRoutes({ modelName: 'auditLog', entity: 'audit_logs', permissions: { read: ['audit.view'] } }));
+routes.use('/reports', reportsRoutes);

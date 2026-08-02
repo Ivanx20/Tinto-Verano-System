@@ -1,0 +1,30 @@
+{
+  "name": "tinto-verano-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Sistema integral POS + restaurante + inventario para Tinto Verano",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @tinto/api\" \"npm run dev -w @tinto/web\"",
+    "dev:api": "npm run dev -w @tinto/api",
+    "dev:web": "npm run dev -w @tinto/web",
+    "build": "npm run build -w @tinto/api && npm run build -w @tinto/web",
+    "lint": "npm run lint -w @tinto/api && npm run lint -w @tinto/web",
+    "format": "prettier --write .",
+    "db:generate": "npm run db:generate -w @tinto/api",
+    "db:migrate": "npm run db:migrate -w @tinto/api",
+    "db:seed": "npm run db:seed -w @tinto/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.2",
+    "@typescript-eslint/parser": "^8.59.2",
+    "concurrently": "^9.1.2",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.6.0",
+    "prettier": "^3.4.2"
+  }
+}
