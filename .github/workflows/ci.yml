@@ -1,0 +1,118 @@
+name: CI Tinto Verano System
+
+# El pipeline se dispara ante cualquier cambio del repositorio: en la rama
+# principal, en las ramas de trabajo y en los pull request hacia main.
+on:
+  push:
+    branches:
+      - main
+      - "feat/**"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Si llega un push nuevo mientras corre una ejecucion anterior de la misma
+# rama, la anterior se cancela para no gastar minutos de runner.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  # -------------------------------------------------------------------
+  # Etapa 1: codigo -> dependencias -> lint -> pruebas -> compilacion
+  # -------------------------------------------------------------------
+  calidad:
+    name: Codigo (dependencias, lint, pruebas y build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalar dependencias del monorepo
+        run: npm ci
+
+      - name: Generar el cliente de Prisma
+        run: npx prisma generate --schema=apps/api/prisma/schema.prisma
+
+      - name: Analisis estatico con ESLint
+        run: npm run lint
+
+      - name: Pruebas automatizadas con Vitest
+        run: npm test
+
+      - name: Compilar la API y el frontend
+        run: npm run build
+
+  # -------------------------------------------------------------------
+  # Etapa 2: construccion de imagenes y validacion del stack completo
+  # -------------------------------------------------------------------
+  contenedores:
+    name: Docker (imagenes y stack de Compose)
+    runs-on: ubuntu-latest
+    needs: calidad
+
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generar variables de entorno efimeras para la ejecucion
+        # Los secretos reales nunca estan en el repositorio: el runner crea
+        # valores aleatorios que viven solo durante esta ejecucion.
+        run: |
+          cp .env.docker.example .env
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_ACCESS_SECRET=$(openssl rand -hex 32)"
+            echo "JWT_REFRESH_SECRET=$(openssl rand -hex 32)"
+          } >> .env
+
+      - name: Validar la definicion de Docker Compose
+        run: docker compose config
+
+      - name: Construir la imagen de la API
+        run: docker build -f apps/api/Dockerfile -t tinto-verano-api:1.0 .
+
+      - name: Construir la imagen del frontend
+        run: docker build -f apps/web/Dockerfile -t tinto-verano-web:1.0 .
+
+      - name: Listar las imagenes construidas
+        run: docker images --filter "reference=tinto-verano-*"
+
+      - name: Levantar PostgreSQL, la API y el frontend
+        run: docker compose up -d --wait --wait-timeout 300
+
+      - name: Estado de los contenedores
+        run: docker compose ps
+
+      - name: Prueba de humo sobre la aplicacion en ejecucion
+        run: |
+          echo "--- GET /api/health (API) ---"
+          curl --fail --silent --show-error http://localhost:4100/api/health
+          echo ""
+          echo "--- GET / (frontend servido por Nginx) ---"
+          curl --fail --silent --show-error -o /dev/null -w "HTTP %{http_code}\n" http://localhost:5173/
+          echo "--- GET /api/health a traves del proxy del frontend ---"
+          curl --fail --silent --show-error http://localhost:5173/api/health
+          echo ""
+
+      - name: Mostrar logs si algo fallo
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+
+      - name: Apagar el stack y limpiar volumenes
+        if: always()
+        run: docker compose down -v

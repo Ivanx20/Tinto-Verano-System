@@ -6,6 +6,7 @@ coverage
 .env
 .env.*
 !.env.example
+!.env.docker.example
 apps/api/prisma/migrations/dev.db
 *.log
 .vscode
@@ -16,3 +17,8 @@ tmp_docx_media/
 scripts/fix_readme.py
 scripts/actualizar_doc_fase1.py
 scripts/generar_fase1_docx.py
+scripts/generar_presentacion_fase1.py
+scripts/generar_diapositiva_matriz.py
+scripts/generar_documento_fase2.py
+scripts/contenido_fase2.py
+scripts/__pycache__/

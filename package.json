@@ -12,6 +12,7 @@
     "dev:web": "npm run dev -w @tinto/web",
     "build": "npm run build -w @tinto/api && npm run build -w @tinto/web",
     "lint": "npm run lint -w @tinto/api && npm run lint -w @tinto/web",
+    "test": "npm run test -w @tinto/api",
     "format": "prettier --write .",
     "db:generate": "npm run db:generate -w @tinto/api",
     "db:migrate": "npm run db:migrate -w @tinto/api",
