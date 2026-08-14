@@ -1,0 +1,21 @@
+# Nunca deben viajar al contexto de construccion
+**/node_modules
+**/dist
+**/build
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+
+.git
+.gitignore
+.github
+docs
+scripts
+tmp_docx_media
+*.md
+*.log
+*.docx
+*.pdf
+.vscode
+.idea
