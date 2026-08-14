@@ -1,0 +1,86 @@
+# =============================================================
+# Tinto Verano System - entorno completo en contenedores
+#   PostgreSQL 17  ->  API Express/Prisma  ->  Frontend React/Nginx
+#
+# Los valores sensibles se leen del archivo .env de la raiz, que NO se
+# versiona. Copie .env.docker.example como .env antes de levantar.
+#   docker compose up -d --build
+# =============================================================
+name: tinto-verano
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: tinto_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - tinto_pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - tinto_net
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: tinto-verano-api:1.0
+    container_name: tinto_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 4100
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+      API_URL: http://localhost:${API_HOST_PORT:-4100}
+      WEB_URL: http://localhost:${WEB_HOST_PORT:-5173}
+      CORS_ORIGINS: http://localhost:${WEB_HOST_PORT:-5173}
+      COOKIE_DOMAIN: localhost
+      TRUST_PROXY: "true"
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME}
+      RUN_DB_SEED: ${RUN_DB_SEED:-true}
+    ports:
+      - "${API_HOST_PORT:-4100}:4100"
+    networks:
+      - tinto_net
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api
+    image: tinto-verano-web:1.0
+    container_name: tinto_web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_HOST_PORT:-5173}:8080"
+    networks:
+      - tinto_net
+
+volumes:
+  tinto_pgdata:
+    name: tinto_verano_pgdata
+
+networks:
+  tinto_net:
+    name: tinto_verano_net
+    driver: bridge
