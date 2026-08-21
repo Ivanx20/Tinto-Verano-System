@@ -22,3 +22,9 @@ scripts/generar_diapositiva_matriz.py
 scripts/generar_documento_fase2.py
 scripts/contenido_fase2.py
 scripts/__pycache__/
+scripts/generar_fase3_word.py
+scripts/extract_b3_pdf.py
+scripts/_b3_pages/
+reports/*
+!reports/.gitkeep
+scripts/_assets_fase3/
