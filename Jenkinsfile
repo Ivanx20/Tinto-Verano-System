@@ -132,7 +132,7 @@ METADATA
                     npm ci
 
                     echo "Generando el cliente de Prisma..."
-                    npx prisma generate --schema=apps/api/prisma/schema.prisma
+                    npx prisma generate --schema=apps/api/schema.prisma
 
                     echo "Compilando la API (tsc) y el frontend (vite)..."
                     npm run build
