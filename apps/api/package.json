@@ -14,7 +14,8 @@
     "db:migrate": "prisma migrate dev --name init",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ci": "vitest run --reporter=verbose --reporter=junit --outputFile.junit=../../reports/junit-api.xml"
   },
   "dependencies": {
     "@prisma/client": "^6.3.1",

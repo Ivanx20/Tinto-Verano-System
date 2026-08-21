@@ -18,6 +18,7 @@ El proyecto está organizado como monorepo con npm workspaces: `apps/api` expone
 - [Contenedores Docker](#contenedores-docker)
 - [Docker Compose](#docker-compose)
 - [Pipeline de integración continua](#pipeline-de-integración-continua)
+- [Automatización con Jenkins](#automatización-con-jenkins)
 - [Flujo de trabajo con Git](#flujo-de-trabajo-con-git)
 - [Módulos incluidos](#módulos-incluidos)
 - [Documentación](#documentación)
@@ -53,6 +54,7 @@ tinto-verano-system/
 │       ├── Dockerfile           # Imagen del frontend (build + Nginx)
 │       └── nginx.conf           # SPA + proxy /api hacia el backend
 ├── .github/workflows/ci.yml     # Pipeline de integración continua
+├── Jenkinsfile                  # Pipeline declarativo de entrega (Jenkins)
 ├── docker-compose.yml           # PostgreSQL + API + frontend
 ├── .env.docker.example          # Plantilla de variables (sin secretos reales)
 └── docs/                        # Documentación técnica
@@ -269,6 +271,43 @@ Está dividido en dos *jobs* encadenados, siguiendo el flujo **código → depen
 | Limpieza | `docker compose down -v` |
 
 Los secretos que necesita el stack durante la ejecución se generan de forma aleatoria dentro del runner con `openssl rand` y viven solo mientras dura el job. Si un paso falla, se publican los últimos 200 renglones de log de los contenedores para facilitar el diagnóstico.
+
+---
+
+## Automatización con Jenkins
+
+Además del workflow de GitHub Actions, el repositorio incluye un `Jenkinsfile` declarativo en la raíz. GitHub Actions se encarga de la verificación continua en cada push y pull request; Jenkins es el pipeline de entrega, el que construye y publica las imágenes etiquetadas.
+
+El job se configura en Jenkins como **Pipeline script from SCM** apuntando a este repositorio, con `Script Path = Jenkinsfile`, de modo que el pipeline se versiona junto al código y cualquier cambio queda en el historial de Git.
+
+| Etapa | Qué hace | Evidencia que deja |
+|---|---|---|
+| 1. Preparación / Checkout | Limpia el workspace, descarga el commit que disparó la ejecución y calcula si es la punta de `main` | `reports/build-metadata.txt` |
+| 2. Dependencias / Build | `npm ci`, `prisma generate` y compilación de API y frontend | Log de la etapa |
+| 3. Pruebas | ESLint y Vitest con reporte JUnit | `reports/junit-api.xml`, `reports/test-output.txt`, `reports/lint-output.txt` |
+| 4. Construcción | Valida `docker-compose.yml` y construye las dos imágenes | `reports/docker-images.txt`, `reports/*-image-inspect.json` |
+| 5. Publicación | Solo en `main`: envía las imágenes a Docker Hub | `reports/docker-publish-metadata.txt` |
+
+### Credenciales
+
+El `Jenkinsfile` no contiene usuarios, tokens ni contraseñas: únicamente el identificador `dockerhub-tinto-verano` de una credencial *Username with password* registrada en Jenkins. El valor real es un *access token* de Docker Hub con permiso limitado a lectura y escritura de repositorios, y se inyecta con `withCredentials` solo durante la etapa 5. La sesión de Docker usa un `DOCKER_CONFIG` temporal que se borra al terminar el paso, de manera que el token no queda escrito en el disco del agente.
+
+### Versionado de las imágenes
+
+Cada imagen se publica con tres etiquetas apuntando al mismo *digest*:
+
+```txt
+usuario/tinto-verano-api:latest
+usuario/tinto-verano-api:<número de build>
+usuario/tinto-verano-api:<número de build>-<commit corto>
+```
+
+La tercera es la que da trazabilidad real: con solo leer el nombre se sabe qué ejecución de Jenkins la produjo y qué commit contiene.
+
+### Requisitos del agente
+
+- Node.js declarado como herramienta global de Jenkins (`NodeJS-24` en `Manage Jenkins → Tools`).
+- Acceso al demonio de Docker desde el agente para poder construir y publicar las imágenes.
 
 ---
 
